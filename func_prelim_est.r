@@ -1,36 +1,8 @@
-library(signal)
 library(Matrix)
 library(mvtnorm)
-library(doBy)
 
 
-approxhrf = function(hrf, t_hrf, hrfbasisfine, P, J, PLOT=FALSE){
-### fit HRF basis to the hrfs and obtain the basis coefficients
-	Hfine = hrfbasisfine$H
-	approxd = array(NA, c(J,P))
-	
-	Htmp = Hfine[hrfbasisfine$t %in% t_hrf,]
-	ttmp = hrfbasisfine$t[hrfbasisfine$t %in% t_hrf]
-	hrftmp = hrf[t_hrf%in% hrfbasisfine$t[hrfbasisfine$t %in% t_hrf],]
-
-	tmplm = lm(hrftmp ~0 + Htmp)
-	approxd = coef(tmplm)
-
-	if(PLOT){
-		par(mfrow= c(2,2))
-		hrffit = fitted(tmplm)
-		for(p in 1:P){
-			plot(t_hrf, hrf[,p], type="l", lwd=2, col="red", cex.lab=1.5, cex.axis=1.5, 
-				main=paste("true HRF approx - ",p), ylab="",xlab="time (sec)", 
-				xlim=c(0, min(29, max(t_hrf))), ylim = range(c(hrf[,p], hrffit[,p])))
-			lines(ttmp, hrffit[,p], col="blue", lwd=2, lty=2)
-		}
-	}
-	return(list(d = approxd, hrffit = hrffit))
-}
-
-
-prelim_Hessian = function(y, d, Ups, HC, Hsum, sig, J, d.i.sig.prior){
+prelim_Hessian = function(y, d, Ups, HC, Hsum, sig, J, prior_d_ome){
 # calculate Hessian matrix of -log(likelihood) 
 	co0 = cbind(HC[,1:J]%*%d, HC[,1:J+J]%*%d)
 	tmp1 = HC[,1:(J-1)] - HC[,J]%*%t(Hsum[1:(J-1)])/Hsum[J]
@@ -43,7 +15,7 @@ prelim_Hessian = function(y, d, Ups, HC, Hsum, sig, J, d.i.sig.prior){
 	Hes = matrix(NA, 3+J, 3+J)
 	Hes[1,1] = length(y)/sig
 	Hes[2:3,2:3] = t(co)%*%co/sig
-	Hes[3+1:(J-1), 3+1:(J-1)] = t(co2)%*%co2/sig + d.i.sig.prior[1:(J-1), 1:(J-1)]
+	Hes[3+1:(J-1), 3+1:(J-1)] = t(co2)%*%co2/sig + prior_d_ome[1:(J-1), 1:(J-1)]
 	Hes[1,2:3] = Hes[2:3, 1] = colSums(co)/sig; 
 	Hes[1, 3+1:(J-1)] = Hes[3+1:(J-1), 1] = colSums(co2)/sig;  
 	Hes[2,3+1:(J-1)] = Hes[3+1:(J-1), 2] = (c(-t(res)%*%tmp1) + c(t(co2)%*%co[,1]))/sig
@@ -58,30 +30,30 @@ prelim_Hessian = function(y, d, Ups, HC, Hsum, sig, J, d.i.sig.prior){
 	return(Hes)
 }
 
-prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior, d.i.sig.prior, 
+prelim_est = function(data, T, P, end, HC, Hsum, J, hrfbasisfine, prior_d_mu, prior_d_ome, 
 	roi = 1:P, dataname="", verbose = TRUE, PLOT=FALSE){
 # function to get rough estimates for beta, d and sig, assuming Y = beta0 + X1* beta1 + X2* beta2 + eps
 # where Xi = HC_i %*% d
 # assuming independence temporally and spatially
 # informative prior, but sum(Hd)=1 is satisfied in the estimation
 
-	if(class(data.ch)=="list"){
-		N = length(data.ch)
+	if(class(data)=="list"){
+		N = length(data)
 	}else{
 		N = 1
-		data.ch = list(data.ch)
+		data = list(data)
 	}
-	if(dim(data.ch[[1]])[1]==P){
+	if(dim(data[[1]])[1]==P){
 		stop(paste(dataname, ": data needs to be transposed to a T by P matrix"))
 	}
 
 
-	d.prior.part = c(d.i.sig.prior%*%d.mu.prior)
+	d.prior.part = c(prior_d_ome%*%prior_d_mu)
 	mutmp = NULL
 	isigtmp = array(NA, c(J-1,J-1,P))
-	mutmp = matrix(d.mu.prior, J, P)[1:(J-1),]
+	mutmp = matrix(prior_d_mu, J, P)[1:(J-1),]
 	for(p in 1:P){
-		isigtmp[,,p] = d.i.sig.prior[(1:(J-1)) + (p-1)*J, (1:(J-1)) + (p-1)*J]
+		isigtmp[,,p] = prior_d_ome[(1:(J-1)) + (p-1)*J, (1:(J-1)) + (p-1)*J]
 	}
 
 	HC_new = HC
@@ -112,7 +84,7 @@ prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior,
 	mu_all = array(0, c(T, P, N))
 
 	for(sub in 1:N){
-		y = data.ch[[sub]]
+		y = data[[sub]]
 		for(m in 1:M){
 			converge = FALSE
 			vbeta_ch = array(NA, c(B, 3*P))
@@ -123,8 +95,8 @@ prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior,
 
 			######## get initial values ########
 			for(p in 1:P){
-				covtmp = solve(d.i.sig.prior[(1:(J)) + (p-1)*J, (1:(J)) + (p-1)*J])
-				meantmp = d.mu.prior[(1:J) + (p-1)*J] 
+				covtmp = solve(prior_d_ome[(1:(J)) + (p-1)*J, (1:(J)) + (p-1)*J])
+				meantmp = prior_d_mu[(1:J) + (p-1)*J] 
 				dtemp = c(rmvnorm(1, meantmp, covtmp))
 				scale = as.numeric(matrix(Hsum,1,J)%*%matrix(dtemp,J,1))
 				dtemp = dtemp/scale
@@ -148,7 +120,7 @@ prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior,
 				for(p in 1:P){
 					sig = sse[p,m]/T
 					# estimate d
-					dvcov[[p]] = solve(t(Z[[p]])%*%Z[[p]]/sig + d.i.sig.prior[(1:(J-1)) + (p-1)*J, (1:(J-1)) + (p-1)*J])
+					dvcov[[p]] = solve(t(Z[[p]])%*%Z[[p]]/sig + prior_d_ome[(1:(J-1)) + (p-1)*J, (1:(J-1)) + (p-1)*J])
 					dtemp = dvcov[[p]]%*%(t(Z[[p]])%*%ytemp[[p]]/sig + d.prior.part[(1:(J-1)) + (p-1)*J])
 					dtemp = c(dtemp, (1 - Hsum[1:(J-1)]%*%dtemp)/Hsum[J])
 					vd[(p-1)*J+1:J] = dtemp                                                                
@@ -214,7 +186,7 @@ prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior,
 			beta_all[p,,sub] = vbeta_temp[p,,select[p]]
 			sig = sig_all[p,sub] = sse[p,select[p]]/T
 			mu_all[,p,sub] = mu_M[,p,select[p]]
-			Hes = prelim_Hessian(y[,p], d_all[,p,sub], beta_all[p,,sub], HC, Hsum, sig, J, d.i.sig.prior[(1:J) + (p-1)*J, (1:J) + (p-1)*J])			
+			Hes = prelim_Hessian(y[,p], d_all[,p,sub], beta_all[p,,sub], HC, Hsum, sig, J, prior_d_ome[(1:J) + (p-1)*J, (1:J) + (p-1)*J])			
 			eigenval = eigen(Hes)$val
 			Hessian_eigen[,p,sub] = eigenval
 		}
@@ -230,7 +202,7 @@ prelim_est = function(data.ch, T, P, end, HC, Hsum, J, hrfbasisfine, d.mu.prior,
 		chrf = chrf/max(chrf)
 		####### y vs mean fit plot and residual vs mean fit plot ######
 		for(sub in 1:N){
-			y = data.ch[[sub]]
+			y = data[[sub]]
 			par(mfrow=c(3,2))
 			for(p in 1:P){
 				plot(y[,p], type="l", col="black", main=paste("mean fit: sub",sub, " roi", roi[p]), ylab="", xlab="time (sec)")

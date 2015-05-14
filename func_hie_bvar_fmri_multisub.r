@@ -1,3 +1,14 @@
+package_install = function(package){if(!package%in%installed.packages()[,1]) install.packages(package)}
+
+package_install("signal")
+package_install("Matrix")
+package_install("mvtnorm")
+package_install("parallel")
+package_install("doMC")
+package_install("Rcpp")
+package_install("RcppArmadillo")
+package_install("inline")
+
 library(signal)
 library(Matrix)
 library(mvtnorm)
@@ -6,7 +17,8 @@ library(doMC)
 library(Rcpp)
 library(RcppArmadillo)
 library(inline)
-source("prelim_est.r")
+
+source("func_prelim_est.r")
   
 conv_multitrial = function(hrf, sti, end){
 #convolution for multiple trials
@@ -86,17 +98,15 @@ prepare_hrfbasis = function(time, end, sti, microtime, TR=time[2]-time[1]){
 }
 
 
-# d.mu.prior = c(solve(d.i.sig.prior)%*%d.prior.part)
-# data = lapply(data.ch, function(x){x$y})
 
 	
-pilot_estimation = function(data.ch, P, T_singleSession, R, sti, TR, L, prior=list(), MCMC_setting = list(chain_size = 1000L, thin=5L, burn=1000L), verbose, PLOT, pdfname ="pilot_estimation" , roinames=1:P, dataname = "", mc.cores = min(length(data.ch), 60), microtime=FALSE){
-# data.ch is a list with each element being the T by P data matrix for a subject
+pilot_estimation = function(data, P, T_singleSession, R, sti, TR, L, prior=list(), MCMC_setting = list(chain_size = 1000L, thin=5L, burn=1000L), verbose, PLOT, pdfname ="pilot_estimation" , roinames=1:P, dataname = "", mc.cores = min(length(data), 60), microtime=FALSE){
+# data is a list with each element being the T by P data matrix for a subject
 	
 	time = (1:(T_singleSession*R))*TR
 	T = T_singleSession*R
 	end = (0:R)*T_singleSession
-	N = length(data.ch) 
+	N = length(data) 
 	mc.cores = min(mc.cores, N)
 	hrfbasis = prepare_hrfbasis(time, end, sti, microtime, TR=TR)
 	J = length(hrfbasis$mean)
@@ -104,17 +114,12 @@ pilot_estimation = function(data.ch, P, T_singleSession, R, sti, TR, L, prior=li
 	Hsum = hrfbasis$Hsum
 	prior_names = names(prior)
 		
-	if(!"d" %in% prior_names){
-		prior_d_mu = rep(hrfbasis$mean,P)
-		d.i.sig.prior.p = d.i.sig.prior = solve(hrfbasis$cov)
-		for(p in 2:P){
-			d.i.sig.prior = bdiag(d.i.sig.prior, d.i.sig.prior.p) 
-		}
-		prior_d_ome = as.matrix(d.i.sig.prior)
-	}else{
-		prior_d_mu = prior$d[[1]]
-		prior_d_ome = solve(prior$d[[2]])
+	prior_d_mu = rep(hrfbasis$mean,P)
+	d.i.sig.prior.p = d.i.sig.prior = solve(hrfbasis$cov)
+	for(p in 2:P){
+		d.i.sig.prior = bdiag(d.i.sig.prior, d.i.sig.prior.p) 
 	}
+	prior_d_ome = as.matrix(d.i.sig.prior)
 	prior_d_part = c(prior_d_ome%*%prior_d_mu)
 	
 	if(!"phi" %in% prior_names){
@@ -152,7 +157,7 @@ pilot_estimation = function(data.ch, P, T_singleSession, R, sti, TR, L, prior=li
 	load("hrfbasis_J5")
 	if(PLOT) pdf(paste(pdfname,".pdf",sep=""))
 
-	pre_glm = prelim_est(data.ch, T, P, end, Hc, Hsum, J, hrfbasisfine, prior_d_mu, prior_d_ome, 
+	pre_glm = prelim_est(data, T, P, end, Hc, Hsum, J, hrfbasisfine, prior_d_mu, prior_d_ome, 
 		roi = roinames, dataname=dataname, verbose = verbose, PLOT=PLOT)
 	if(PLOT) dev.off()
 	
@@ -160,7 +165,7 @@ pilot_estimation = function(data.ch, P, T_singleSession, R, sti, TR, L, prior=li
 	seed_ch = sample(N*100, N)
 	n_phi = length(prior_phi_mu)
 	for(sub in 1:N){
-		y = as.matrix(data.ch[[sub]])#[data$time %in% time,])
+		y = as.matrix(data[[sub]])#[data$time %in% time,])
 		noise  = y - pre_glm$mu_all[,,sub]
 		phipre_para = list(noise, end, L, prior_phi_part[1:(n_phi/2)], prior_phi_ome[1:(n_phi/2), 1:(n_phi/2)],VAR.multiTrial)
 		phipre = VAR.multiTrial(noise, end, L, prior_phi_part[1:(n_phi/2)], prior_phi_ome[1:(n_phi/2), 1:(n_phi/2)])
@@ -184,7 +189,7 @@ pilot_estimation = function(data.ch, P, T_singleSession, R, sti, TR, L, prior=li
 }
 
 
-formal_estimation = function(pilot, data.ch, P, L, sti, prior=list(), MCMC_setting=list(chain_size = 5000L, burn=3000L), verbose){
+formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=list(chain_size = 5000L, burn=3000L), verbose){
 
 	result = pilot$result
 	time = pilot$time
@@ -348,7 +353,7 @@ formal_estimation = function(pilot, data.ch, P, L, sti, prior=list(), MCMC_setti
 			res = result[[sub]]
 			return( 
 				bvarhrf_singlesub_raw(
-				T, end, sti, L, data.ch[[sub]], Hc, Hsum,
+				T, end, sti, L, data[[sub]], Hc, Hsum,
 				prior_d_part, phi_part, beta_part, prior_d_ome, diag(phi_ome),  
 				diag(beta_ome), prob_post, nu, psi_omega, 
 				res$vphis[chain_size,], res$vxicat[,,chain_size], res$Omega[,,chain_size], res$vbeta[chain_size,], res$vd[chain_size, ], res$U[,,chain_size],
@@ -384,16 +389,16 @@ formal_estimation = function(pilot, data.ch, P, L, sti, prior=list(), MCMC_setti
 }
 
 
-hbvar_fmri = function(data.ch, P, T_singleSession, R, sti, TR, L , 
-	prior= list(), MCMC_setting = list(chain_size = 5000L, burn=3000L), verbose, 
+hbvar_fmri = function(data, P, T_singleSession, R, sti, TR, L , 
+	prior= list(), MCMC_setting = list(chain_size = 5000L, burn=3000L), verbose=TRUE, 
 	pilot_prior=list(), pilot_MCMC_setting = list(chain_size = 1000L, thin=5L, burn=1000L), pilot_verbose=FALSE, 
-	mc.cores = min(length(data.ch), 60), microtime=FALSE, 
+	mc.cores = min(length(data), 60), microtime=FALSE, 
 	pilot_PLOT=FALSE, pilot_pdfname ="pilot_estimation", roinames=1:P, dataname = ""){
 
-	pilot = pilot_estimation(data.ch, P, T_singleSession, R, sti, TR, L, pilot_prior, pilot_MCMC_setting, pilot_verbose, pilot_PLOT, pilot_pdfname, roinames, dataname, mc.cores = mc.cores, microtime)
+	pilot = pilot_estimation(data, P, T_singleSession, R, sti, TR, L, pilot_prior, pilot_MCMC_setting, pilot_verbose, pilot_PLOT, pilot_pdfname, roinames, dataname, mc.cores = mc.cores, microtime)
 	print("variables initialized")
 
-	return( formal_estimation(pilot, data.ch, P, L, sti, prior, MCMC_setting, verbose) )
+	return( formal_estimation(pilot, data, P, L, sti, prior, MCMC_setting, verbose) )
 
 }
 
