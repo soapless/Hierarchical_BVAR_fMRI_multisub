@@ -19,33 +19,6 @@ library(RcppArmadillo)
 library(inline)
 
 source("func_prelim_est.r")
-  
-conv_multitrial = function(hrf, sti, end){
-#convolution for multiple trials
-	T = length(sti)
-	x1=rep(NA, T)
-	n.ses = length(end) - 1
-	for(ses in 1:n.ses){
-		sti.ses = sti[(end[ses]+1):end[ses+1]]
-		x1[(end[ses]+1):end[ses+1]]=conv(hrf, sti.ses)[1:length(sti.ses)]
-	}
-	return(x1)
-}
-
-conv_multitrial_fine = function(hrffine, sti, end, hrftfine, TR){
-#convolution for multiple trials with microtime
-	T = length(sti)
-	x1=rep(NA, T)
-	n.ses = length(end) - 1
-	deltat = hrftfine[2] - hrftfine[1]
-	nTR = TR/deltat
-	for(ses in 1:n.ses){
-		sti.ses = sti[(end[ses]+1):end[ses+1]]
-		sti.ses.fine = rep(sti.ses, each = nTR)
-		x1[(end[ses]+1):end[ses+1]]= deltat*conv(hrffine, sti.ses.fine)[(1:length(sti.ses))*nTR]
-	}
-	return(x1)
-}
 
 main_code = paste(readLines("main_code.cpp"), collapse="\r\n")
 side_code = paste(readLines("side_code.cpp"), collapse="\r\n")
@@ -75,18 +48,45 @@ bvarhrf_singlesub_parallel = function(paras_ch, mc.cores = length(paras_ch)){
 }
 
 
+conv_multiSession = function(hrf, sti, end){
+#convolution for multiple trials
+	T = length(sti)
+	x1=rep(NA, T)
+	n.ses = length(end) - 1
+	for(ses in 1:n.ses){
+		sti.ses = sti[(end[ses]+1):end[ses+1]]
+		x1[(end[ses]+1):end[ses+1]]=conv(hrf, sti.ses)[1:length(sti.ses)]
+	}
+	return(x1)
+}
+
+conv_multiSession_fine = function(hrffine, sti, end, hrftfine, TR){
+#convolution for multiple trials with microtime
+	T = length(sti)
+	x1=rep(NA, T)
+	n.ses = length(end) - 1
+	deltat = hrftfine[2] - hrftfine[1]
+	nTR = TR/deltat
+	for(ses in 1:n.ses){
+		sti.ses = sti[(end[ses]+1):end[ses+1]]
+		sti.ses.fine = rep(sti.ses, each = nTR)
+		x1[(end[ses]+1):end[ses+1]]= deltat*conv(hrffine, sti.ses.fine)[(1:length(sti.ses))*nTR]
+	}
+	return(x1)
+}
+
 prepare_hrfbasis = function(time, end, sti, microtime, TR=time[2]-time[1]){
 	load("hrfbasis_J5")
 	J = 5
 	H = hrfbasisfine$H
 	if(!microtime){
 		H = H[hrfbasisfine$t %in% c(0, time), ]
-		HC1 = apply(H, 2, conv_multitrial, sti, end)
-		HC2 = apply(H, 2, conv_multitrial, 1-sti, end)
+		HC1 = apply(H, 2, conv_multiSession, sti, end)
+		HC2 = apply(H, 2, conv_multiSession, 1-sti, end)
 		delta_t = 1
 	}else{
-		HC1 = apply(H, 2, conv_multitrial_fine, sti, end, hrfbasisfine$t, TR)
-		HC2 = apply(H, 2, conv_multitrial_fine, 1-sti, end, hrfbasisfine$t, TR)
+		HC1 = apply(H, 2, conv_multiSession_fine, sti, end, hrfbasisfine$t, TR)
+		HC2 = apply(H, 2, conv_multiSession_fine, 1-sti, end, hrfbasisfine$t, TR)
 		delta_t = hrfbasisfine$t[2] - hrfbasisfine$t[1]
 	}
 	Hc = cbind(HC1, HC2)
@@ -157,6 +157,7 @@ pilot_estimation = function(data, P, T_singleSession, R, sti, TR, L, prior=list(
 	load("hrfbasis_J5")
 	if(PLOT) pdf(paste(pdfname,".pdf",sep=""))
 
+	# preliminary analysis for beta and d
 	pre_glm = prelim_est(data, T, P, end, Hc, Hsum, J, hrfbasisfine, prior_d_mu, prior_d_ome, 
 		roi = roinames, dataname=dataname, verbose = verbose, PLOT=PLOT)
 	if(PLOT) dev.off()
@@ -164,12 +165,14 @@ pilot_estimation = function(data, P, T_singleSession, R, sti, TR, L, prior=list(
 	paras_ch = vector("list",N)
 	seed_ch = sample(N*100, N)
 	n_phi = length(prior_phi_mu)
+	
+	phi.reorder = apply(array(1:n_phi, c(P, P, L)), c(1,3), t)
 	for(sub in 1:N){
 		y = as.matrix(data[[sub]])#[data$time %in% time,])
 		noise  = y - pre_glm$mu_all[,,sub]
-		phipre_para = list(noise, end, L, prior_phi_part[1:(n_phi/2)], prior_phi_ome[1:(n_phi/2), 1:(n_phi/2)],VAR.multiTrial)
-		phipre = VAR.multiTrial(noise, end, L, prior_phi_part[1:(n_phi/2)], prior_phi_ome[1:(n_phi/2), 1:(n_phi/2)])
-		phiinits = c(t(matrix(c(phipre$phi),P, P)))
+		# preliminary analysis for phi and Omega
+		phipre = VAR.multiSession(noise, end, L, prior_phi_part[phi.reorder], prior_phi_ome[phi.reorder, phi.reorder])
+		phiinits = c(phipre$phi[phi.reorder])
 		vxicatinits = matrix(abs(phiinits) > 0.1, P, P)
 		omegainits = solve(phipre$Sigma)
 		
@@ -185,7 +188,7 @@ pilot_estimation = function(data, P, T_singleSession, R, sti, TR, L, prior=list(
 
 	result = bvarhrf_singlesub_parallel(paras_ch, mc.cores = mc.cores)
 	return(list(result = result, time = time, T = T, end = end, N = N, mc.cores=mc.cores, hrfbasis=hrfbasis, J = J, Hc=Hc, Hsum = Hsum, hrfbasisfine = hrfbasisfine, MCMC_setting=MCMC_setting, prior_d_mu=prior_d_mu, prior_d_ome=prior_d_ome))
-	# need to transpose the results !!!
+
 }
 
 

@@ -1,4 +1,3 @@
-library(Matrix)
 library(mvtnorm)
 
 
@@ -263,38 +262,40 @@ prelim_est = function(data, T, P, end, HC, Hsum, J, hrfbasisfine, prior_d_mu, pr
 }
 
 
-VAR.multiTrial = function(Y, end, L, prior_part, prior_isig){
+VAR.multiSession = function(Y, end, L, prior_part, prior_isig){
 	n.ses = length(end)-1
 	P = dim(Y)[2]
 	Sigma = diag(P)
 	EPS = 1e-6
 	loglik = -Inf
-	for(iter in 1:500){
-		Z = ZZ = vy = Zr = list()
-		for(i in 1:n.ses){
-			T.ses = end[i+1] - end[i]
-			t.ses = (end[i]+1):end[i+1]
-			vy[[i]] = c(t(Y[t.ses[(L+1):T.ses], ]))
-			Ztemp = NULL
-			for(l in 1:L){
-				Zl = t(Y[t.ses[(L-l+1):(T.ses-l)],])
-				Ztemp = rbind(Ztemp, Zl)
-			}
-			Z[[i]] = Ztemp
-			ZZ[[i]] = Z[[i]]%*%t(Z[[i]])
-		}
+	T = dim(Y)[1]
 
-		ZZ.all= 0
-		for(i in 1:n.ses){
-			ZZ.all = ZZ.all + ZZ[[i]]
+	Z = ZZ = vy = Zr = list()
+	for(i in 1:n.ses){
+		T.ses = end[i+1] - end[i]
+		t.ses = (end[i]+1):end[i+1]
+		vy[[i]] = c(t(Y[t.ses[(L+1):T.ses], ]))
+		Ztemp = NULL
+		for(l in 1:L){
+			Zl = t(Y[t.ses[(L-l+1):(T.ses-l)],])
+			Ztemp = rbind(Ztemp, Zl)
 		}
-		i.ZZ.all = solve(ZZ.all)
-		vb = 0
-		for(i in 1:n.ses){
-			Zr[[i]] = kronecker(i.ZZ.all%*%Z[[i]], diag(P))
-			vb = vb + Zr[[i]]%*%vy[[i]]
-		}
-		
+		Z[[i]] = Ztemp
+		ZZ[[i]] = Z[[i]]%*%t(Z[[i]])
+	}
+
+	ZZ.all= 0
+	for(i in 1:n.ses){
+		ZZ.all = ZZ.all + ZZ[[i]]
+	}
+	i.ZZ.all = solve(ZZ.all)
+	vb = 0
+	for(i in 1:n.ses){
+		Zr[[i]] = kronecker(i.ZZ.all%*%Z[[i]], diag(P))
+		vb = vb + Zr[[i]]%*%vy[[i]]
+	}
+	for(iter in 1:500){
+
 		phicov = kronecker(i.ZZ.all, Sigma)
 		iphicov = solve(phicov)
 		cov_post = solve(iphicov + prior_isig)
@@ -309,7 +310,7 @@ VAR.multiTrial = function(Y, end, L, prior_part, prior_isig){
 		}
 		Sigma = UU.all/(T-L*(P+n.ses)) 
 		
-		loglik_new = -0.5*((det(Sigma))*T +  sum(diag(UU.all%*%Sigma)) )
+		loglik_new = -0.5*((det(Sigma))*(T-L*n.ses)  +  sum(diag(UU.all%*%Sigma)) )
 
 		if(abs(loglik_new - loglik)< EPS) break
 

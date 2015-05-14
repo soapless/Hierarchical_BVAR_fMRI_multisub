@@ -62,16 +62,16 @@ MORE DETAILS OF THE FILES:
  - hbvar_fmri(): estimate the hierarchical Bayesian model for multi-subject fMRI data; returns the MCMC posterior samples
  - formal_estimation(): an internal function to obtain the MCMC posterior samples based on the given initial values; called by hbvar_fmri()
  - pilot_estimation(): perform pilot estimation to obtain good initial values for formal model estimation, assuming independence across subjects; called by hbvar_fmri()
- - prepare_hrfbasis(): an internal function to return the convolutions and the prior distributions for HRF basis
- - bvarhrf_singlesub_parallel(): an internal function to sample the subject-level parameters for all subjects simultaneous through parallel computing, but independently
- - bvarhrf_singlesub(): an internal wrapper function to sample the subject-level parameters with the function argument being a list of arguments
- - bvarhrf_singlesub_raw(): an internal R wrapper function to sample the subject-level parameters with the function, compiled from C++ code
- - conv_multitrial(): calculate the convolution between the hrf (basis functions) and the stimulus indicator with multiple fMRI sessions (trial)
- - conv_multitrial_fine(): calculate the convolution between the hrf (basis functions) and the stimulus indicator with multiple sessions with a fine grid
+ - prepare_hrfbasis(): an internal function to return the convolutions and the prior distributions for HRF basis; called by pilot_estimation()
+ - bvarhrf_singlesub_parallel(): an internal function to sample the subject-level parameters for all subjects simultaneous through parallel computing, but independently; called by pilot_esetimation()
+ - bvarhrf_singlesub(): an internal wrapper function to sample the subject-level parameters with the function argument being a list of arguments; called by bvarhrf_singlesub_parallel()
+ - bvarhrf_singlesub_raw(): an internal R wrapper function to sample the subject-level parameters with the function, compiled from C++ code; called by bvarhrf_singlesub()
+ - conv_multiSession(): calculate the convolution between the hrf (basis functions) and the stimulus indicator with multiple fMRI sessions (trial); called by prepare_hrfbasis()
+ - conv_multiSession_fine(): calculate the convolution between the hrf (basis functions) and the stimulus indicator with multiple sessions with a fine grid; called by prepare_hrfbasis()
  
 * func_prelim_est.r 
  - prelim_est(): estimate BOLD amplitude and region-specific HRF assuming independent Gaussian error; called by func_hie_bvar_fmri_multisub.r
- - VAR.multiTrial(): fit a VAR model for replicated time series; called by func_hie_bvar_fmri_multisub.r
+ - VAR.multiSession(): fit a VAR model for replicated time series; called by func_hie_bvar_fmri_multisub.r
  - prelim_Hessian(): an internal function to estimate the Hessian matrix of the point estimates, called by prelim_est()
 
 

@@ -1,5 +1,5 @@
-rm(list=ls())
-
+rm(list=ls())#
+ 
 load("data/toyData.RData")
 
 data_sub1 = data[[1]]
@@ -22,7 +22,7 @@ Omega_mu = diag(P)
 
 pilot_prior = list(beta = list(prior_beta_mu, solve(prior_beta_ome)), phi=list(prior_phi_mu, solve(prior_phi_ome)), pi = prob_ini, omega = list(nu, Omega_mu))
 
-prior = list(phi = list(rep(0, L*P^2*2), rep(1, L*P^2*2)), beta= list(rep(0, 3*P), rep(1/25, 3*P)), pi = c(.1, .1), sigma_phi=c(1,1), sigma_beta=c(1,1), omega = P+1)
+prior = list(phi = list(rep(0, L*P^2*2), rep(1, L*P^2*2)), beta= list(rep(0, 3*P), rep(25, 3*P)), pi = c(.1, .1), sigma_phi=c(1,1), sigma_beta=c(1,1), omega = P+1)
 
 data.fmrionly = lapply(data, function(x){x$y})
 mc.cores = length(data)
