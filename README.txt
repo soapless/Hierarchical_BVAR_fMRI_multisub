@@ -41,7 +41,7 @@ The file is a R workspace containing a simulated dataset
 	pilot_prior:		a list of prior constants used for the pilot estimation. A list containing 4 elements: beta, phi, pi and omega. Default is list(phi=list(mean=rep(0, 2*(P*P)*L), var_cov=diag(rep(0.5^2, 2*(P*P)*L))), beta = list(mean=rep(0, 3*P), var_cov=diag(rep(50^2, 3*P))), pi=matrix(rep(1/(1+L),(1+L)*P*P),1+L), omega=c(nu=P+1, psi_omega = diag(P))). For beta and phi, it is a list with the 1st element being the vector of the mean and the 2nd element being the variance-covariance matrix for the vector phi (or beta). For pi, it is a 2 by (2*L*P^2) matrix, with each column being the probability vector for the multinomial distribution for each element of xi. For omega, it is a list with the 1st element being the DF argument and the 2nd element being the scale matrix argument of the Wishart distribution for Omega. 
 	pilot_MCMC_setting:	specification of the MCMC size for the pilot estimation, similar to MCMC_setting. Default: list(chain_size = 1000L, thin=5L, burn=1000L)
 	pilot_verbose:		print iteration information during the pilot estimation
-	mc.cores:		the number of CPUs to use for parallel computing. Default is: min(length(data), 60)
+	mc.cores:		the number of CPUs to use for parallel computing. Default is: min(length(data), detectCores())
 	microtime:		whether to use a finer scale to compute the convolution. Default is FALSE
 	pilot_PLOT:		whether to generate a pdf file for results of the preliminary analysis. Default is FALSE
 	pilot_pdfname:		if pilot_PLOT=TRUE, this will be the file name of the generated pdf file. Default is "pilot_estimation"
