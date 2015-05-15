@@ -395,9 +395,9 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 hbvar_fmri = function(data, P, T_singleSession, R, sti, TR, L , 
 	prior= list(), MCMC_setting = list(chain_size = 5000L, burn=3000L), verbose=TRUE, 
 	pilot_prior=list(), pilot_MCMC_setting = list(chain_size = 1000L, thin=5L, burn=1000L), pilot_verbose=FALSE, 
-	mc.cores = min(length(data), 60), microtime=FALSE, 
+	mc.cores = length(data), microtime=FALSE, 
 	pilot_PLOT=FALSE, pilot_pdfname ="pilot_estimation", roinames=1:P, dataname = ""){
-
+	mc.cores = min(mc.cores, detectCores())
 	pilot = pilot_estimation(data, P, T_singleSession, R, sti, TR, L, pilot_prior, pilot_MCMC_setting, pilot_verbose, pilot_PLOT, pilot_pdfname, roinames, dataname, mc.cores = mc.cores, microtime)
 	print("variables initialized")
 
