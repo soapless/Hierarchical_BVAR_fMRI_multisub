@@ -1,7 +1,7 @@
 Implementation for manuscript: ``A Hierarchical Bayesian Model for Studying the Impact of Stroke on Brain Motor Function''
 
-* Currently works only on Linux and OS systems. 
-For OS users, if you get compilation error, please check if this works: http://stackoverflow.com/questions/19920281/rcpparmadillo-compile-errors-on-os-x-mavericks
+* Currently works only on Linux and Mac OS systems. 
+For Mac users, if you get compilation error, please check if this works: http://stackoverflow.com/questions/19920281/rcpparmadillo-compile-errors-on-os-x-mavericks
 
 #### FILES ####
 * func_hie_bvar_fmri_multisub.r
