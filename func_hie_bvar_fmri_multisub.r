@@ -1,5 +1,4 @@
-package_install = function(package){if(!package%in%installed.packages()[,1]) install.packages(package)}
-
+package_install = function(package){if(!package%in%installed.packages()[,1]) install.packages(package, repos='http://cran.us.r-project.org')}
 package_install("signal")
 package_install("Matrix")
 package_install("mvtnorm")
@@ -301,7 +300,7 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 	seed.iter = matrix(sample((multi_burn+multi_chain_size)*N, N*(multi_burn+multi_chain_size), 
 	replace=((multi_burn+multi_chain_size)*N>2e9)), multi_burn+multi_chain_size)
 
-	options(warn=2)
+	# options(warn=2)
 	registerDoMC(mc.cores)
 	getDoParWorkers()	
 	
