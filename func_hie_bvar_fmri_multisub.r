@@ -3,7 +3,10 @@ package_install("signal")
 package_install("Matrix")
 package_install("mvtnorm")
 package_install("parallel")
+WINDOWS = 'Windows'%in% Sys.info()[['sysname']]
+if(!WINDOWS){
 package_install("doMC")
+}
 package_install("Rcpp")
 package_install("RcppArmadillo")
 package_install("inline")
@@ -12,7 +15,9 @@ library(signal)
 library(Matrix)
 library(mvtnorm)
 library(parallel)
+if(!WINDOWS){
 library(doMC)
+}
 library(Rcpp)
 library(RcppArmadillo)
 library(inline)
@@ -43,7 +48,11 @@ bvarhrf_singlesub = function(paras){
 }
 
 bvarhrf_singlesub_parallel = function(paras_ch, mc.cores = length(paras_ch)){
+	if(!WINDOWS){
 	return(mclapply(paras_ch, bvarhrf_singlesub, mc.cores=mc.cores))
+	}else{
+	return(lapply(paras_ch, bvarhrf_singlesub))
+	}
 }
 
 
@@ -301,8 +310,10 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 	replace=((multi_burn+multi_chain_size)*N>2e9)), multi_burn+multi_chain_size)
 
 	# options(warn=2)
+	if(!WINDOWS){
 	registerDoMC(mc.cores)
 	getDoParWorkers()	
+	}
 	
 	chain_size = pre_chain_size
 	for(iter in 1:(multi_burn + multi_chain_size)){
@@ -350,6 +361,7 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 		prob_post = rbind(1-prob_post, prob_post)
 
 		seed = seed.iter[iter, ]
+		if(!WINDOWS){
 		result = foreach(sub = 1:N)%dopar%{
 			set.seed(seed[sub])
 			res = result[[sub]]
@@ -362,6 +374,21 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 				1L, thin, 0L)
 						
 			)
+		}
+		}else{
+		result = lapply(1:N, function(sub){
+			set.seed(seed[sub])
+			res = result[[sub]]
+			return( 
+				bvarhrf_singlesub_raw(
+				T, end, sti, L, data[[sub]], Hc, Hsum,
+				prior_d_part, phi_part, beta_part, prior_d_ome, diag(phi_ome),  
+				diag(beta_ome), prob_post, nu, psi_omega, 
+				res$vphis[chain_size,], res$vxicat[,,chain_size], res$Omega[,,chain_size], res$vbeta[chain_size,], res$vd[chain_size, ], res$U[,,chain_size],
+				1L, thin, 0L)
+						
+			)
+		})
 		}
 		
 		if(iter>multi_burn){
@@ -387,6 +414,7 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 		}
 
 	}
+	print("model estimation finished")
 	return(multi_result)
 }
 
