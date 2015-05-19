@@ -1,6 +1,6 @@
 Implementation for manuscript: ``A Hierarchical Bayesian Model for Studying the Impact of Stroke on Brain Motor Function''
 
-* Currently the parallel computing only works only on Linux and Mac OS systems, so it runs slow on Windows. 
+* Currently the parallel computing in this implementation works only on Linux and Mac OS systems, so it runs slow on Windows. 
 * For Mac users, if you get compilation error, please check if this works: http://stackoverflow.com/questions/19920281/rcpparmadillo-compile-errors-on-os-x-mavericks
 
 #### FILES ####
