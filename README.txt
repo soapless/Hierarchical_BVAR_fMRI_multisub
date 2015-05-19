@@ -56,8 +56,8 @@ The file is a R workspace containing a simulated dataset
 			
  - Notes (!IMPORTANT!): 
 	The order of the phi elements is: phi_{p=1,q=1:P,l=1,k=1}, ..., phi_{p=P,q=1:P,l=1,k=1}, ..., phi_{p=P,q=1:P,l=L,k=1}, ..., phi_{p=P,q=1:P,l=L,k=2}. Here p is the row number and q is the column number. Therefore for phi_array = array(phi, c(P, P, L, 2)), phi_array[,,l,k] returns the *TRANSPOSE* of Phi_{pq}(l) in the manuscript. 
-	The order of the beta elements is: beta_{[p=1:P, k=0}, beta_{p=1:P, k=1}, beta_{[p=1:P, k=2}
-	The order of the d elements is: d_{[j=1:J, p=1}, ..., d_{j=1:J, p=P}
+	The order of the beta elements is: beta_{p=1:P, k=0}, beta_{p=1:P, k=1}, beta_{p=1:P, k=2}
+	The order of the d elements is: d_{j=1:J, p=1}, ..., d_{j=1:J, p=P}
 
 
 #### MORE DETAILS OF THE FILES ####
