@@ -11,16 +11,14 @@ TR = data_sub1$time[2] - data_sub1$time[1]
 L = 1L
 
 prior_phi_mu = rep(0, 2*(P*P)*L)
-prior_phi_ome = diag(1/rep(0.5^2, 2*(P*P)*L))
-prior_phi_part = c(prior_phi_ome%*%prior_phi_mu)
+prior_phi_sig = diag(rep(0.5^2, 2*(P*P)*L))
 prior_beta_mu = rep(0, 3*P)
-prior_beta_ome = diag(1/rep(50^2, 3*P))
-prior_beta_part = c(prior_beta_ome%*%prior_beta_mu)
+prior_beta_sig = diag(rep(50^2, 3*P))
 prob_ini = matrix(rep(1/(1+L),(1+L)*P*P),1+L)
 nu = P+1
 Omega_mu = diag(P)
 
-pilot_prior = list(beta = list(prior_beta_mu, solve(prior_beta_ome)), phi=list(prior_phi_mu, solve(prior_phi_ome)), pi = prob_ini, omega = list(nu, Omega_mu))
+pilot_prior = list(beta = list(prior_beta_mu, prior_beta_sig), phi=list(prior_phi_mu, prior_phi_sig), pi = prob_ini, omega = list(nu, Omega_mu))
 
 prior = list(phi = list(rep(0, L*P^2*2), rep(1, L*P^2*2)), beta= list(rep(0, 3*P), rep(25, 3*P)), pi = c(.1, .1), sigma_phi=c(1,1), sigma_beta=c(1,1), omega = P+1)
 

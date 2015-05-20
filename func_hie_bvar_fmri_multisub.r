@@ -181,7 +181,11 @@ pilot_estimation = function(data, P, T_singleSession, R, sti, TR, L, prior=list(
 		# preliminary analysis for phi and Omega
 		phipre = VAR.multiSession(noise, end, L, prior_phi_part[phi.reorder], prior_phi_ome[phi.reorder, phi.reorder])
 		phiinits = c(phipre$phi[phi.reorder])
-		vxicatinits = matrix(abs(phiinits) > 0.1, P, P)
+		phiarray = array(phiinits,c(P,P,L))
+		vxicatinits = matrix(0, P,P)
+		for(l in 1:L){
+		 vxicatinits[abs(phiarray[,,l])>0.1] = l
+		}
 		omegainits = solve(phipre$Sigma)
 		
 		paras_ch[[sub]] = list(ID = sub, T = T, end=end, sti=sti, L=L, y=y, Hc=Hc, Hsum=Hsum,
