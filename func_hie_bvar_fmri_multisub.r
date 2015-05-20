@@ -10,6 +10,7 @@ package_install("doMC")
 package_install("Rcpp")
 package_install("RcppArmadillo")
 package_install("inline")
+package_install("MCMCpack")
 
 library(signal)
 library(Matrix)
@@ -21,6 +22,7 @@ library(doMC)
 library(Rcpp)
 library(RcppArmadillo)
 library(inline)
+library(MCMCpack)
 
 source("func_prelim_est.r")
 
@@ -247,11 +249,9 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 	prior_beta_part = c(prior_beta_ome%*%prior_beta_mu)
 
 	if(!"pi" %in% prior_names){
-		a_pi = 0.1
-		b_pi = 0.1
+		a_pi = rep(0.1, L+1)
 	}else{
-		a_pi = prior$pi[[1]]
-		b_pi = prior$pi[[2]]
+		a_pi = prior$pi
 	}
 	if(!"sigma_phi" %in% prior_names){
 		a_phi = 1
@@ -360,9 +360,8 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 		Omega_sum = apply(Omega_multi, c(1,2), sum )
 		psi_omega = Omega_sum%*%solve(psi_omega_random[,,iter])
 				
-		vxicat_count = apply(vxicat_multi, c(1,2), sum) 
-		prob_post = rbeta(P*P, c(vxicat_count)+a_pi, N-c(vxicat_count)+b_pi )
-		prob_post = rbind(1-prob_post, prob_post)
+		vxicat_count = apply(vxicat_multi, c(1,2), function(x){table(factor(x, levels = 0:L))}) 
+		prob_post = matrix(apply(vxicat_count, c(2,3), function(x){rdirichlet(1, x + a_pi)[1,]}), L+1)
 
 		seed = seed.iter[iter, ]
 		if(!WINDOWS){
@@ -411,7 +410,7 @@ formal_estimation = function(pilot, data, P, L, sti, prior=list(), MCMC_setting=
 
 		if(verbose){
 			if(iter%%100==0){
-				print(iter)
+				print(paste("iteration:", iter))
 				print(Sys.time())
 				flush.console()
 			}

@@ -171,6 +171,7 @@ prelim_est = function(data, T, P, end, HC, Hsum, J, hrfbasisfine, prior_d_mu, pr
 		}
 
 		if(verbose){
+			dimnames(lik) = list(roi, 1:M)
 			print("coefficient of variation of loglik across 10 runs:")
 			print(apply(lik, 1, sd)/apply(lik, 1, mean))
 		}
